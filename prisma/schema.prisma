@@ -1,0 +1,334 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  EXPERT
+  ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  EXPERT
+}
+
+enum PostType {
+  QUESTION
+  EXPERIENCE
+  DISCUSSION
+  TUTORIAL
+}
+
+enum ContentStatus {
+  PUBLISHED
+  DRAFT
+  ARCHIVED
+}
+
+model User {
+  id                String           @id @default(cuid())
+  email             String?          @unique
+  phone             String?          @unique
+  password          String?          // nullable for OAuth users
+  name              String
+  username          String           @unique
+  avatar            String?
+  bio               String?
+  location          String?
+  website           String?
+  role              UserRole         @default(USER)
+  reputation        Int              @default(0)
+  subscriptionPlan  SubscriptionPlan @default(FREE)
+  skills            String[]         @default([])
+  interests         String[]         @default([])
+  emailVerified     DateTime?
+  phoneVerified     DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  posts             Post[]
+  comments          Comment[]
+  votes             Vote[]
+  bookmarks         Bookmark[]
+  followers         Follow[]         @relation("UserFollowers")
+  following         Follow[]         @relation("UserFollowing")
+  clubMemberships   ClubMember[]
+  messages          Message[]        @relation("MessageSender")
+  receivedMessages  Message[]        @relation("MessageReceiver")
+  accounts          Account[]
+  sessions          Session[]
+  translations      Translation[]
+  transactions      Transaction[]
+
+  @@index([username])
+  @@index([email])
+  @@index([reputation])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Post {
+  id              String        @id @default(cuid())
+  title           String
+  content         String        @db.Text
+  type            PostType
+  status          ContentStatus @default(PUBLISHED)
+  authorId        String
+  clubId          String?
+  redditPostId    String?       @unique // For Reddit integration
+  redditUrl       String?
+  originalTitle   String?       @db.Text // Original Reddit title
+  originalContent String?       @db.Text // Original Reddit content
+  viewCount       Int           @default(0)
+  upvotes         Int           @default(0)
+  downvotes       Int           @default(0)
+  commentCount    Int           @default(0)
+  isTranslated    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  author          User          @relation(fields: [authorId], references: [id])
+  club            Club?         @relation(fields: [clubId], references: [id])
+  tags            PostTag[]
+  comments        Comment[]
+  votes           Vote[]
+  bookmarks       Bookmark[]
+  translations    Translation[]
+
+  @@index([authorId])
+  @@index([clubId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([upvotes])
+  @@index([redditPostId])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?
+  postCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  posts      PostTag[]
+
+  @@index([slug])
+}
+
+model PostTag {
+  id        String   @id @default(cuid())
+  postId    String
+  tagId     String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
+}
+
+model Comment {
+  id          String        @id @default(cuid())
+  content     String        @db.Text
+  authorId    String
+  postId      String
+  parentId    String?       // For nested comments
+  upvotes     Int           @default(0)
+  downvotes   Int           @default(0)
+  status      ContentStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  author      User          @relation(fields: [authorId], references: [id])
+  post        Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent      Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[]     @relation("CommentReplies")
+  votes       Vote[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  commentId String?
+  value     Int      // 1 for upvote, -1 for downvote
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, commentId])
+  @@index([userId])
+  @@index([postId])
+  @@index([commentId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+}
+
+model Club {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  avatar      String?
+  cover       String?
+  category    String
+  memberCount Int      @default(0)
+  postCount   Int      @default(0)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members     ClubMember[]
+  posts       Post[]
+
+  @@index([slug])
+  @@index([category])
+}
+
+model ClubMember {
+  id        String   @id @default(cuid())
+  userId    String
+  clubId    String
+  role      String   @default("MEMBER") // MEMBER, MODERATOR, ADMIN
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+  @@index([userId])
+  @@index([clubId])
+}
+
+model Follow {
+  id        String   @id @default(cuid())
+  followerId String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String   @db.Text
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+model Translation {
+  id            String   @id @default(cuid())
+  postId        String
+  translatorId  String?
+  originalText  String   @db.Text
+  translatedText String  @db.Text
+  sourceLanguage String  @default("en")
+  targetLanguage String  @default("fa")
+  provider      String?  // Translation service provider
+  qualityScore  Float?
+  createdAt     DateTime @default(now())
+
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  translator    User?    @relation(fields: [translatorId], references: [id])
+
+  @@index([postId])
+  @@index([translatorId])
+}
+
+model Transaction {
+  id            String          @id @default(cuid())
+  userId        String
+  amount        Decimal         @db.Decimal(10, 2)
+  currency      String          @default("IRR")
+  plan          SubscriptionPlan
+  status        String          // PENDING, COMPLETED, FAILED
+  paymentMethod String?
+  transactionId String?         @unique
+  createdAt     DateTime        @default(now())
+  completedAt   DateTime?
+
+  user          User            @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+

@@ -1,0 +1,45 @@
+{
+  "name": "global-tech-hub",
+  "version": "1.0.0",
+  "description": "Global Tech Hub - International Club Hub for Technology Professionals",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next-auth": "^4.24.5",
+    "prisma": "^5.7.1",
+    "@prisma/client": "^5.7.1",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.22.4",
+    "react-hook-form": "^7.49.2",
+    "@hookform/resolvers": "^3.3.4",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "framer-motion": "^10.16.16",
+    "lucide-react": "^0.303.0",
+    "axios": "^1.6.2",
+    "date-fns": "^3.0.6",
+    "next-i18next": "^15.2.0",
+    "react-i18next": "^14.0.1",
+    "i18next": "^23.7.16"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.0.4"
+  }
+}
+
